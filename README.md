@@ -135,6 +135,24 @@ Config is stored at `~/.nanoclaw/config.json`:
 }
 ```
 
+
+## Azure Foundry
+
+You can configure Azure AI Foundry (Azure OpenAI-compatible) as provider:
+
+```json
+{
+  "providers": {
+    "azureFoundry": {
+      "apiKey": "YOUR_AZURE_KEY",
+      "endpoint": "https://YOUR_RESOURCE.openai.azure.com",
+      "deployment": "gpt-4o-mini",
+      "apiVersion": "2024-10-21"
+    }
+  }
+}
+```
+
 ## Built-in Tools
 
 - `web_search` - search the internet (Brave API)

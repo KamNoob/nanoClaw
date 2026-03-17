@@ -52,7 +52,7 @@ class Gateway:
         logger.debug(f"Logger state: level={root.level}, handlers={len(root.handlers)}")
 
         # Log provider and model
-        provider, _, _, base_url = self.config.get_active_provider()
+        provider, _, _, base_url, _ = self.config.get_active_provider()
         model = self.config.get_default_model()
         if base_url:
             logger.info(f"Provider: {provider} ({base_url})")
