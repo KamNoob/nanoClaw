@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import os
 
 from nanoclaw.security.sandbox import SecurityError, get_file_guard
@@ -43,7 +44,7 @@ async def file_read(path: str) -> str:
     try:
         fd = os.open(str(safe_path), os.O_RDONLY | os.O_NOFOLLOW)
     except OSError as e:
-        if e.errno == 40:  # ELOOP — is a symlink
+        if e.errno == errno.ELOOP:  # ELOOP - is a symlink
             return f"ACCESS DENIED: symlink points outside workspace: {path}"
         return f"Error reading file: {e}"
 
@@ -95,13 +96,14 @@ async def file_write(path: str, content: str) -> str:
 
         # Use O_NOFOLLOW to atomically reject symlinks at open() time (no TOCTOU)
         flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW
-        fd = os.open(str(safe_path), flags, 0o644)
+        # Owner-only permissions prevent accidental local data exposure.
+        fd = os.open(str(safe_path), flags, 0o600)
         try:
             os.write(fd, content.encode("utf-8"))
         finally:
             os.close(fd)
     except OSError as e:
-        if e.errno == 40:  # ELOOP — is a symlink
+        if e.errno == errno.ELOOP:  # ELOOP - is a symlink
             return f"ACCESS DENIED: symlink at write target: {path}"
         return f"Error writing file: {e}"
     except Exception as e:
