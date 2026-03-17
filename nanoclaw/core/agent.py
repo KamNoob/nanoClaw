@@ -124,8 +124,13 @@ class Agent:
         logger.debug(f"User: {user_message}")
 
         # 1. Load context (keep it lean for speed)
-        history = await self.memory.get_history(session_id, limit=15)
-        relevant_memories = await self.memory.search_memories(user_message, limit=5)
+        skip_memory = self._should_skip_memory(user_message)
+        history_limit = 6 if skip_memory else 15
+        history = await self.memory.get_history(session_id, limit=history_limit)
+        relevant_memories = (
+            [] if skip_memory
+            else await self.memory.search_memories(user_message, limit=5)
+        )
 
         # 2. Build messages array
         messages = self.ctx.build_messages(user_message, history, relevant_memories)
@@ -254,7 +259,6 @@ class Agent:
         await self.memory.add_message(session_id, "assistant", final_response)
 
         # 5. Background: extract and save important facts
-        skip_memory = self._should_skip_memory(user_message)
         if not skip_memory:
             asyncio.create_task(
                 self._extract_memories(user_message, final_response)

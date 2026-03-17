@@ -123,7 +123,7 @@ class AgentsConfig(BaseModel):
 class AgentConfig(BaseModel):
     """Agent runtime configuration."""
 
-    max_iterations: int = Field(default=15, alias="maxIterations")
+    max_iterations: int = Field(default=10, alias="maxIterations")
     max_tokens_per_session: int = Field(default=50000, alias="maxTokensPerSession")
     session_timeout: int = Field(default=300, alias="sessionTimeout")
     system_prompt: str = Field(default="", alias="systemPrompt")

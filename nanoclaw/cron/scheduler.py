@@ -32,6 +32,9 @@ class Scheduler:
         self.gateway = gateway
         self.running = False
         self._task: Optional[asyncio.Task] = None
+        self._max_concurrent_jobs = 3
+        self._job_semaphore = asyncio.Semaphore(self._max_concurrent_jobs)
+        self._job_tasks: set[asyncio.Task] = set()
         self._db_path = self._get_db_path()
 
     def _get_db_path(self) -> Path:
@@ -88,8 +91,15 @@ class Scheduler:
                     should_run = True
 
             if should_run:
-                asyncio.create_task(self._execute_job(job))
+                task = asyncio.create_task(self._execute_job_with_limit(job))
+                self._job_tasks.add(task)
+                task.add_done_callback(self._job_tasks.discard)
                 await self._update_last_run(job["id"])
+
+    async def _execute_job_with_limit(self, job: dict) -> None:
+        """Run a cron job with bounded concurrency."""
+        async with self._job_semaphore:
+            await self._execute_job(job)
 
     async def _execute_job(self, job: dict) -> None:
         """Run a cron job: send message to agent, forward response to user."""
@@ -232,6 +242,12 @@ class Scheduler:
                 await self._task
             except asyncio.CancelledError:
                 pass
+
+        for task in list(self._job_tasks):
+            task.cancel()
+        if self._job_tasks:
+            await asyncio.gather(*self._job_tasks, return_exceptions=True)
+        self._job_tasks.clear()
 
 
 # Global scheduler instance

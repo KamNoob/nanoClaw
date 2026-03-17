@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import copy
 from typing import Any, Optional
 
@@ -168,3 +169,64 @@ async def test_agent_executes_tool_and_returns_response() -> None:
     assert tool_msgs
     assert "<tool_result" in tool_msgs[0]["content"]
     assert memory.history[0]["role"] == "user"
+
+
+class DirectLLM:
+    """LLM stub that returns a direct response in one call."""
+
+    async def chat(
+        self,
+        messages: list[dict[str, Any]],
+        tools: Optional[list[dict[str, Any]]] = None,
+        model: Optional[str] = None,
+    ) -> LLMResponse:
+        """Return immediate text response without tool calls."""
+        return LLMResponse(
+            content="ok",
+            tool_calls=[],
+            usage=TokenUsage(prompt_tokens=1, completion_tokens=1),
+        )
+
+
+class CountingMemoryStore(FakeMemoryStore):
+    """Memory store stub that counts lookup calls."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.search_calls = 0
+        self.last_history_limit = 0
+
+    async def get_history(self, session_id: str, limit: int = 15) -> list[dict]:
+        """Track requested history limit."""
+        self.last_history_limit = limit
+        return await super().get_history(session_id, limit=limit)
+
+    async def search_memories(self, query: str, limit: int = 5) -> list[dict]:
+        """Count memory search calls."""
+        self.search_calls += 1
+        return await super().search_memories(query, limit=limit)
+
+
+def test_agent_skips_memory_search_for_trivial_message() -> None:
+    """Agent should skip memory search for trivial short messages."""
+    llm = DirectLLM()
+    memory = CountingMemoryStore()
+    tools = FakeToolRegistry()
+    audit = FakeAuditLog()
+    budget = SessionBudget(max_iterations=5)
+    prompt_guard = PromptGuard()
+    agent = Agent(
+        llm=llm,
+        memory=memory,
+        tools=tools,
+        audit=audit,
+        budget=budget,
+        prompt_guard=prompt_guard,
+        context_builder=ContextBuilder(),
+        max_iterations=5,
+    )
+
+    result = asyncio.run(agent.run("ok", session_id="s1"))
+    assert result == "ok"
+    assert memory.search_calls == 0
+    assert memory.last_history_limit == 6
