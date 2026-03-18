@@ -457,7 +457,7 @@ async def show_status() -> None:
     click.echo("=" * 40)
 
     # Provider
-    provider, _, model, _ = config.get_active_provider()
+    provider, _, model, _, _ = config.get_active_provider()
     click.echo(f"Provider: {provider}")
     click.echo(f"Model: {model}")
 

@@ -124,6 +124,7 @@ class LLMClient:
         api_key: str,
         default_model: str,
         base_url: Optional[str] = None,
+        api_version: Optional[str] = None,
     ):
         """
         Initialize LLM client.
@@ -133,11 +134,13 @@ class LLMClient:
             api_key: API key
             default_model: Default model to use
             base_url: Custom base URL (for proxies/local models)
+            api_version: Optional API version (used by Azure OpenAI endpoints)
         """
         self.provider = provider
         self.api_key = api_key
         self.model = default_model
         self.base_url = base_url or self.BASE_URLS.get(provider, "")
+        self.api_version = api_version
 
     async def chat(
         self,
@@ -159,10 +162,9 @@ class LLMClient:
         model = model or self.model
 
         headers = self._build_headers()
-        payload: dict[str, Any] = {
-            "model": model,
-            "messages": messages,
-        }
+        payload: dict[str, Any] = {"messages": messages}
+        if self.provider != "azure_openai":
+            payload["model"] = model
 
         # OpenAI GPT-5+ uses max_completion_tokens, others use max_tokens
         if self.provider == "openai" and model.startswith("gpt-5"):
@@ -179,6 +181,13 @@ class LLMClient:
         if self.provider == "anthropic":
             endpoint = f"{self.base_url}/messages"
             payload = self._adapt_for_anthropic(payload)
+        elif self.provider == "azure_openai":
+            version = self.api_version or "2024-10-21"
+            base = self.base_url.rstrip("/")
+            endpoint = (
+                f"{base}/openai/deployments/{model}/chat/completions"
+                f"?api-version={version}"
+            )
         else:
             endpoint = f"{self.base_url}/chat/completions"
 
@@ -228,6 +237,12 @@ class LLMClient:
                 "x-api-key": self.api_key,
                 "anthropic-version": "2023-06-01",
                 "content-type": "application/json",
+                "Accept-Encoding": "gzip, deflate",
+            }
+        if self.provider == "azure_openai":
+            return {
+                "api-key": self.api_key,
+                "Content-Type": "application/json",
                 "Accept-Encoding": "gzip, deflate",
             }
         headers = {
@@ -395,10 +410,10 @@ def get_llm_client() -> LLMClient:
         from nanoclaw.core.config import get_config
 
         config = get_config()
-        provider, api_key, model, base_url = config.get_active_provider()
+        provider, api_key, model, base_url, api_version = config.get_active_provider()
         # Use model from agents.defaults if set
         model = config.get_default_model()
-        _llm_client = LLMClient(provider, api_key, model, base_url)
+        _llm_client = LLMClient(provider, api_key, model, base_url, api_version)
     return _llm_client
 
 

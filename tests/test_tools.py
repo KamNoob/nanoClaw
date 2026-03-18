@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import stat
 from pathlib import Path
 
 import pytest
@@ -76,3 +78,16 @@ def test_tool_registry_includes_core_tools() -> None:
         "spawn_task",
     }
     assert expected.issubset(names)
+
+
+def test_file_write_uses_owner_only_permissions(tmp_path: Path) -> None:
+    """file_write should create files with 0600 permissions."""
+    set_file_guard(FileGuard(tmp_path))
+
+    async def _run() -> None:
+        await file_write("secret.txt", "topsecret")
+
+    asyncio.run(_run())
+
+    mode = stat.S_IMODE((tmp_path / "secret.txt").stat().st_mode)
+    assert mode == 0o600

@@ -31,7 +31,7 @@
     "semanticSearch": false
   },
   "agent": {
-    "maxIterations": 15,
+    "maxIterations": 10,
     "maxTokensPerSession": 50000,
     "sessionTimeout": 300
   },

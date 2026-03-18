@@ -42,6 +42,16 @@ class DeepSeekConfig(BaseModel):
     default_model: str = Field(default="deepseek-chat", alias="defaultModel")
 
 
+
+class AzureFoundryConfig(BaseModel):
+    """Azure AI Foundry (Azure OpenAI-compatible) configuration."""
+
+    api_key: str = Field(alias="apiKey")
+    endpoint: str = Field(alias="endpoint")
+    deployment: str = Field(alias="deployment")
+    api_version: str = Field(default="2024-10-21", alias="apiVersion")
+
+
 class ProvidersConfig(BaseModel):
     """LLM providers configuration."""
 
@@ -49,6 +59,9 @@ class ProvidersConfig(BaseModel):
     anthropic: Optional[AnthropicConfig] = None
     openai: Optional[OpenAIConfig] = None
     deepseek: Optional[DeepSeekConfig] = None
+    azure_foundry: Optional[AzureFoundryConfig] = Field(
+        default=None, alias="azureFoundry"
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -123,7 +136,7 @@ class AgentsConfig(BaseModel):
 class AgentConfig(BaseModel):
     """Agent runtime configuration."""
 
-    max_iterations: int = Field(default=15, alias="maxIterations")
+    max_iterations: int = Field(default=10, alias="maxIterations")
     max_tokens_per_session: int = Field(default=50000, alias="maxTokensPerSession")
     session_timeout: int = Field(default=300, alias="sessionTimeout")
     system_prompt: str = Field(default="", alias="systemPrompt")
@@ -166,11 +179,11 @@ class Config(BaseModel):
         data = json.loads(config_path.read_text())
         return cls(**data)
 
-    def get_active_provider(self) -> tuple[str, str, str, Optional[str]]:
+    def get_active_provider(self) -> tuple[str, str, str, Optional[str], Optional[str]]:
         """
         Get active provider details.
 
-        Returns: (provider_name, api_key, default_model, base_url)
+        Returns: (provider_name, api_key, default_model, base_url, api_version)
         """
         if self.providers.deepseek:
             # DeepSeek uses OpenAI-compatible API
@@ -179,12 +192,14 @@ class Config(BaseModel):
                 self.providers.deepseek.api_key,
                 self.providers.deepseek.default_model,
                 "https://api.deepseek.com",
+                None,
             )
         elif self.providers.openrouter:
             return (
                 "openrouter",
                 self.providers.openrouter.api_key,
                 self.providers.openrouter.default_model,
+                None,
                 None,
             )
         elif self.providers.anthropic:
@@ -193,6 +208,7 @@ class Config(BaseModel):
                 self.providers.anthropic.api_key,
                 self.providers.anthropic.default_model,
                 None,
+                None,
             )
         elif self.providers.openai:
             return (
@@ -200,6 +216,15 @@ class Config(BaseModel):
                 self.providers.openai.api_key,
                 self.providers.openai.default_model,
                 self.providers.openai.base_url,
+                None,
+            )
+        elif self.providers.azure_foundry:
+            return (
+                "azure_openai",
+                self.providers.azure_foundry.api_key,
+                self.providers.azure_foundry.deployment,
+                self.providers.azure_foundry.endpoint,
+                self.providers.azure_foundry.api_version,
             )
         else:
             raise ValueError("No LLM provider configured.")
@@ -208,7 +233,7 @@ class Config(BaseModel):
         """Get the default model from agents config or provider."""
         if self.agents.defaults.model:
             return self.agents.defaults.model
-        _, _, model, _ = self.get_active_provider()
+        _, _, model, _, _ = self.get_active_provider()
         return model
 
 

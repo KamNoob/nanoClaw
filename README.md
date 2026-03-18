@@ -113,7 +113,7 @@ Config is stored at `~/.nanoclaw/config.json`:
   },
   "agents": {
     "defaults": {
-      "model": "anthropic/claude-sonnet-4-5"
+      "model": "anthropic/claude-sonnet-4"
     }
   },
   "channels": {
@@ -128,12 +128,37 @@ Config is stored at `~/.nanoclaw/config.json`:
       "apiKey": "BRAVE_API_KEY"
     }
   },
+  "agent": {
+    "maxIterations": 10,
+    "maxTokensPerSession": 50000,
+    "sessionTimeout": 300
+  },
   "dashboard": {
     "enabled": true,
     "port": 18790
   }
 }
 ```
+
+
+## Azure Foundry
+
+You can configure Azure AI Foundry (Azure OpenAI-compatible) as provider:
+
+```json
+{
+  "providers": {
+    "azureFoundry": {
+      "apiKey": "YOUR_AZURE_KEY",
+      "endpoint": "https://YOUR_RESOURCE.openai.azure.com",
+      "deployment": "gpt-4o-mini",
+      "apiVersion": "2024-10-21"
+    }
+  }
+}
+```
+
+Use your deployment name in `deployment` and your Azure resource URL in `endpoint`.
 
 ## Built-in Tools
 
@@ -207,7 +232,7 @@ ruff check nanoclaw/
 | DeepSeek | deepseek-chat, deepseek-reasoner | [platform.deepseek.com](https://platform.deepseek.com) |
 | Anthropic | Claude Sonnet/Opus/Haiku | [console.anthropic.com](https://console.anthropic.com) |
 | OpenAI | GPT-5 family | [platform.openai.com](https://platform.openai.com) |
-| Local | Ollama, LM Studio | - |
+| Azure Foundry | Azure OpenAI deployments | [ai.azure.com](https://ai.azure.com) |
 
 ## Requirements
 
